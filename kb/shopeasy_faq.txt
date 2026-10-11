@@ -1,0 +1,37 @@
+ShopEasy Customer Support Knowledge Base
+
+ORDER TRACKING
+- Standard delivery takes 5-7 business days within India.
+- Express delivery takes 2-3 business days. Available in metro cities.
+- To track your order, visit shopeasy.in/track and enter your order ID.
+- If your order shows "In Transit" for more than 5 days, raise a support ticket.
+- Orders above Rs. 999 get free standard shipping.
+
+REFUND POLICY
+- Refunds are processed within 5-7 business days after the return is received.
+- Eligible for refund: damaged items, wrong item delivered, item not delivered.
+- Not eligible for refund: used items, items without original packaging after 48 hours.
+- Refund amount is credited to the original payment method.
+- UPI and wallet refunds are processed within 24 hours.
+- Bank transfer refunds take 5-7 business days.
+
+RETURN POLICY
+- Return window is 7 days from delivery date.
+- Items must be unused and in original packaging.
+- Electronics must include all accessories and box for return.
+- Raise a return request at shopeasy.in/returns with your order ID.
+
+TECHNICAL SUPPORT
+- For app issues, clear cache and try reinstalling the ShopEasy app.
+- For payment failures, wait 30 minutes. If amount is deducted, it auto-refunds in 24 hours.
+- For login issues, use Forgot Password on the login page.
+- For product defects within warranty period, contact the brand service center directly.
+
+ESCALATION TRIGGERS
+- If order is delayed beyond 10 business days, escalate to logistics team.
+- If customer has raised the same complaint more than twice, escalate to senior support.
+- If payment was deducted but order not placed, escalate immediately to payments team.
+
+CONTACT
+- Support hours: 9 AM to 9 PM IST, Monday to Saturday.
+- Emergency escalations are handled 24x7.

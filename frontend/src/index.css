@@ -1,0 +1,54 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply antialiased min-h-screen text-[#0d0d0d] bg-white m-0 p-0;
+    font-family: 'Outfit', sans-serif;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-black text-white px-6 py-2.5 rounded-xl font-medium transition-all duration-300 hover:bg-zinc-800 active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
+  }
+  
+  .btn-secondary {
+    @apply bg-white text-zinc-600 border border-zinc-200 px-6 py-2.5 rounded-xl font-medium transition-all duration-300 hover:bg-zinc-50 active:scale-95;
+  }
+
+  .card-premium {
+    @apply bg-white w-full h-full;
+  }
+
+  .chat-bubble-user {
+    @apply bg-[#f4f4f4] text-[#0d0d0d] rounded-2xl px-5 py-3 text-[15px] font-medium leading-relaxed;
+  }
+
+  .chat-bubble-ai {
+    @apply text-[#0d0d0d] px-2 py-3 text-[15px] font-medium leading-relaxed;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-zinc-200 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-zinc-300;
+}

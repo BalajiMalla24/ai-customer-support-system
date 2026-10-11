@@ -1,0 +1,752 @@
+% ============================================================================
+% End Semester Project Report - Agentic AI Systems
+% Project: AI-Powered Customer Support System (ShopEasy)
+% ============================================================================
+\documentclass[12pt,a4paper]{report}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{xurl}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{fancyhdr}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric}
+
+\hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+\setstretch{1.2}
+\setcounter{secnumdepth}{0}
+\setlength{\emergencystretch}{3em}
+\setlength{\tabcolsep}{4.5pt}
+\renewcommand{\arraystretch}{1.15}
+\sloppy
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{AI-Powered Customer Support System}
+\fancyhead[R]{End Semester Report}
+\fancyfoot[C]{\thepage}
+
+\title{AI-Powered Customer Support System\\\large Agentic AI for Omnichannel Support, RAG, and Voice Automation}
+\author{Team Name: \textit{Replace with your team details}}
+\date{Academic Year 2025--2026}
+
+\begin{document}
+
+% ============================================================================
+% 1. Title Page
+% ============================================================================
+\begin{titlepage}
+\centering
+\vspace*{1cm}
+
+{\Large\bfseries Woxsen University \\[0.2cm]}
+{\large School of Technology \\[1cm]}
+
+% Logo
+\includegraphics[width=0.22\textwidth]{woxsen_logo.png}\\[0.8cm]
+
+{\LARGE\bfseries END SEMESTER PROJECT REPORT \\[0.4cm]}
+{\large on \\[0.3cm]}
+{\Large\bfseries AI-POWERED CUSTOMER SUPPORT SYSTEM \\[0.2cm]}
+{\normalsize (Agentic AI with Multi-Model Routing, RAG, and Voice Streaming) \\[1.2cm]}
+
+\begin{center}
+{\bfseries Project Domain:} Agentic AI Systems / Intelligent Customer Support\\[0.2cm]
+{\bfseries Submitted by:}\\[0.25cm]
+Vishwa Teja \quad (22WU0101153)\\[0.12cm]
+Suhas Varma \quad (22WU0101155)\\[0.12cm]
+Rohith Ch \quad (22WU0101140)\\[0.12cm]
+Shashank \quad (22WU0101137)\\[0.12cm]
+Siddhartha \quad (22WU0104160)\\[0.25cm]
+\textbf{Course Name:} End Semester Project\\[0.2cm]
+{\bfseries Instructor Name:} Dr.Anand Kakarla\\[0.2cm]
+\textbf{Date of Submission:} March 2026
+\end{center}
+
+\vspace{0.6cm}
+
+\begin{center}
+{\bfseries Under the guidance of:}\\[0.2cm]
+Dr.Anand Kakarla
+\end{center}
+
+\vfill
+\end{titlepage}
+
+% ============================================================================
+% 2. Abstract
+% ============================================================================
+\chapter*{Abstract}
+This report presents the design and implementation of an agentic AI customer support platform for e-commerce scenarios. The objective is to automate high-volume support tasks while preserving response quality, escalation safety, and contextual continuity across chat and voice channels. The system is built on a hybrid architecture: cloud LLMs (Groq and Gemini) handle high-quality reasoning, while local/offline components (Ollama, Whisper, FAISS index) support resilience and controllable fallback behavior. A multi-agent graph orchestrates Supervisor, Triage, Resolution, and Critic roles with conditional routing, revision loops, and escalation pathways. Retrieval-Augmented Generation (RAG) injects domain knowledge from internal FAQs and live order data. Session memory is maintained using Redis (with fallback), historical analytics use MongoDB, and an Admin dashboard provides queue and intent-priority insights. Voice mode supports streaming turn detection, partial transcripts, and low-latency responses. Results show strong practical performance for demo-grade production readiness: robust order support, consistent escalation handling, and clean multi-channel behavior. Remaining work focuses on productionization, including stronger authentication, CI/CD, deeper automated testing, and external enterprise integrations.
+
+\textbf{Keywords:} Agentic AI, LangGraph, RAG, FastAPI, WebSocket, Whisper, Ollama, Redis, MongoDB, Voice AI
+
+\tableofcontents
+\listoftables
+\listoffigures
+
+% ============================================================================
+% 3. Problem Definition & Domain
+% ============================================================================
+\chapter{Problem Definition and Domain}
+\section{Objective}
+The objective is to build an autonomous customer support system capable of handling real-world order and service queries across text and voice interactions with minimal human intervention.
+
+\section{Chosen Domain}
+The chosen domain is \textbf{AI-driven E-commerce Customer Support}. It addresses high operational pressure from repetitive order tracking, delivery concerns, refund inquiries, and intent ambiguity in customer messages.
+
+\section{Why Agentic AI}
+This problem benefits from agentic AI because:
+\begin{itemize}[leftmargin=*]
+    \item A single prompt-response model is insufficient for robust routing, verification, and escalation.
+    \item Complex queries require task decomposition and tool usage (orders API, profile memory, RAG retrieval).
+    \item Multi-agent critique improves response quality, reducing hallucination and policy drift.
+    \item Hybrid reasoning (cloud + local fallback) improves reliability under API or network constraints.
+\end{itemize}
+
+% ============================================================================
+% 4. System Architecture & Agent Roles
+% ============================================================================
+\chapter{System Architecture and Agent Roles}
+\section{Hybrid Architecture}
+The system combines cloud intelligence (Groq, Gemini) with local intelligence (Ollama, Whisper, FAISS). FastAPI acts as the backend orchestration layer. React serves the user-facing channels (Store, My Orders, Chat, Voice Mode, Admin).
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+node distance=1.0cm and 1.8cm,
+box/.style={rectangle,rounded corners,draw=black,minimum width=3.0cm,minimum height=0.8cm,align=center},
+arr/.style={-{Stealth[length=2.5mm]},thick}
+]
+\node[box] (ui) {React Frontend\\Store | Orders | Chat | Voice | Admin};
+\node[box,below=of ui] (api) {FastAPI Backend\\REST + WebSocket};
+\node[box,left=of api] (agents) {Agent Graph\\Supervisor/Triage/Resolution/Critic};
+\node[box,right=of api] (voice) {Voice Pipeline\\Whisper + TTS};
+\node[box,below left=of api] (data) {Redis + MongoDB\\Session + History};
+\node[box,below right=of api] (rag) {FAISS KB\\shopeasy\_faq.txt};
+
+\draw[arr] (ui) -- (api);
+\draw[arr] (api) -- (agents);
+\draw[arr] (api) -- (voice);
+\draw[arr] (agents) -- (data);
+\draw[arr] (agents) -- (rag);
+\draw[arr] (voice) -- (data);
+\draw[arr] (voice) -- (rag);
+\end{tikzpicture}
+\caption{High-level hybrid architecture}
+\end{figure}
+
+\section{Agent Roles}
+\begin{table}[H]
+\centering
+\caption{Agent responsibilities}
+\begin{tabularx}{\textwidth}{|l|l|X|}
+\hline
+\textbf{Component} & \textbf{Role Type} & \textbf{Responsibility} \\
+\hline
+Supervisor & Planner/Router & Intent classification, confidence routing, escalation trigger \\
+\hline
+Triage & Planner & Subtask breakdown, priority assignment, response strategy \\
+\hline
+Resolution & Executor & Tool calls (order fetch/summary/RAG), response drafting \\
+\hline
+Critic & Verifier & Quality, safety, and grounding checks; approve/reject/escalate \\
+\hline
+Escalation Bundle & Handoff Support & Human-readable context package for unresolved sessions \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Offline / Local Components}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Ollama} local model as fallback route for selected tasks and escalation bundle generation.
+    \item \textbf{Whisper} local speech-to-text model for voice transcription.
+    \item \textbf{FAISS} local vector index for retrieval from the project knowledge base.
+\end{itemize}
+ 
+% ============================================================================
+% 5. Memory Integration & RAG
+% ============================================================================
+\chapter{Memory Integration and Knowledge Retrieval (RAG)}
+\section{RAG Setup}
+RAG retrieves support-relevant context from \texttt{kb/shopeasy\_faq.txt}. The FAISS index is loaded or rebuilt at startup. Retrieval results are injected into agent prompts to improve factual grounding.
+
+\section{Contextual Memory}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Redis}: session history, session metadata (intent/priority/order context), user profile fields.
+    \item \textbf{MongoDB}: durable message history, session activity, queue analytics, order documents.
+    \item \textbf{Fallback strategy}: if Redis is unavailable, profile memory falls back to in-process store.
+\end{itemize}
+
+\section{Memory and Grounding Outcome}
+The system preserves conversation continuity and order context across chat/voice turns. This reduced context loss and improved answer consistency for repeated order-related queries.
+% 6. Tool Usage & Environment Setup
+% ============================================================================
+\chapter{Tool Usage and Environment Setup}
+\section{Agent Tooling}
+\begin{table}[H]
+\centering
+\caption{Primary tools used by agents}
+\begin{tabularx}{\textwidth}{|l|l|X|}
+\hline
+\textbf{Tool/Endpoint} & \textbf{Input} & \textbf{Output} \\
+\hline
+\path|/api/mock/order/{id}| & order\_id & Item, status, ETA, amount, customer \\
+\hline
+\path|/api/mock/orders/summary| & session/customer & Aggregates, totals, active orders \\
+\hline
+FAISS retrieval & user query & Top-K relevant support snippets \\
+\hline
+\path|/ws/chat/{session}| & text/JSON payload & Real-time assistant response \\
+\hline
+\path|/ws/voice-stream/{session}| & audio chunks/control events & partial transcript, early reply, turn result \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Environment Setup}
+\begin{itemize}[leftmargin=*]
+    \item Backend: Python, FastAPI, LangGraph, Redis client, Motor Mongo driver, Whisper.
+    \item Frontend: React, Vite, Tailwind.
+    \item Optional services: Redis server, MongoDB server, Ollama runtime.
+\end{itemize}
+
+% ============================================================================
+% 7. Agent Planning & Orchestration
+% ============================================================================
+\chapter{Agent Planning and Orchestration}
+\section{Planning Mechanism}
+Supervisor and Triage jointly decompose user goals into structured support actions: detect intent, determine priority, choose whether to retrieve order data, retrieve RAG evidence, and decide escalation pathways.
+
+\section{Execution Workflow}
+Workflow sequence:
+\begin{enumerate}[label=\arabic*.]
+    \item Accept user turn from chat or voice channel.
+    \item Resolve session and optional order context.
+    \item Run graph: Supervisor $\rightarrow$ Triage $\rightarrow$ Resolution.
+    \item Critic evaluates draft and either approves, rejects for retry, or escalates.
+    \item Persist history + metadata and return response.
+\end{enumerate}
+
+\section{Agent Coordination}
+Coordination is implemented as a directed state graph with conditional edges and bounded retries (Critic rejection loops back to Resolution, capped by retry logic).
+
+% ============================================================================
+% 8. Validation and Testing
+% ============================================================================
+\chapter{Validation and Testing of Agentic System}
+\section{Unit Validation for Tools}
+Core endpoints and tool contracts were validated for shape and error behavior:
+\begin{itemize}[leftmargin=*]
+    \item order lookup and order summary endpoints,
+    \item session profile updates,
+    \item admin metrics/queue/analytics,
+    \item chat and voice transport paths.
+\end{itemize}
+
+\section{Trajectory Analysis}
+A complex order complaint trajectory showed:
+\begin{enumerate}[label=\arabic*.]
+    \item Supervisor identified order-related support with urgency.
+    \item Resolution fetched order details and support knowledge.
+    \item Critic enforced response quality and escalation rules.
+    \item Final response preserved order grounding and user clarity.
+\end{enumerate}
+
+\section{Consistency Testing}
+Repeated prompts for the same order ID produced semantically stable outputs (same order status and ETA family), with minor stylistic variance expected from LLM non-determinism.
+
+\section{Robustness and Error Handling}
+\begin{itemize}[leftmargin=*]
+    \item Redis outage fallback for profile memory.
+    \item Missing order events returns empty list when order exists.
+    \item Voice turn errors return explicit user-facing guidance.
+    \item Escalation path triggers when automatic resolution confidence is insufficient.
+\end{itemize}
+
+\section{RAG Evaluation Metrics}
+Qualitative metrics used:
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Answer relevance}: degree of alignment between user question and retrieved context.
+    \item \textbf{Faithfulness}: response consistency with retrieved/order data.
+\end{itemize}
+
+\section{Human-in-the-Loop}
+Escalation bundle supports optional human review and takeover for high-risk or unresolved sessions.
+
+% ============================================================================
+% 9. System Evaluation
+% ============================================================================
+\chapter{System Evaluation}
+\section{Model Comparison}
+\begin{table}[H]
+\centering
+\caption{Cloud vs local model usage in the system}
+\begin{tabularx}{\textwidth}{|l|l|X|}
+\hline
+\textbf{Model Path} & \textbf{Type} & \textbf{Usage Notes} \\
+\hline
+Groq (primary) & Cloud & Fast routing/triage/resolution path for low latency \\
+\hline
+Gemini (fallback/critic path) & Cloud & Strong review quality and robust critic behavior \\
+\hline
+Ollama (fallback/local) & Local & Resilience path for local execution and escalation summarization \\
+\hline
+Whisper & Local & Reliable STT for uploaded and streaming voice turns \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Operational Evaluation}
+The system achieved stable performance for demo scenarios: responsive chat support, usable voice mode, reliable order context loading, and clear admin monitoring. Remaining gaps are mostly production engineering concerns, not missing core functionality.
+
+% ============================================================================
+% 10. Results and Insights
+% ============================================================================
+\chapter{Results and Insights}
+\section{Key Findings}
+\begin{itemize}[leftmargin=*]
+    \item Multi-agent orchestration improved answer quality over direct single-pass generation.
+    \item Critic-stage validation reduced low-quality responses and improved tone consistency.
+    \item RAG and live order retrieval significantly increased factual grounding.
+    \item Order-context persistence improved continuity in chat and voice support sessions.
+\end{itemize}
+
+\section{Interpretation}
+The architecture demonstrates that hybrid agentic systems can balance quality, speed, and reliability in customer support tasks. Most observed issues were output-format or control-flow edge cases that were fixable through targeted middleware and turn-state controls.
+
+% ============================================================================
+% 11. Conclusion
+% ============================================================================
+\chapter{Conclusion}
+This project delivered a functional, agentic customer support platform with multi-agent reasoning, retrieval grounding, and omnichannel support. The most effective configuration combined cloud routing and critique with local fallback and local speech processing. The main takeaway is that structured orchestration plus retrieval and memory provides more dependable support behavior than isolated prompt-based assistants.
+
+% ============================================================================
+% 12. Limitations
+% ============================================================================
+\chapter{Limitations}
+\begin{itemize}[leftmargin=*]
+    \item Limited automated test coverage for full production confidence.
+    \item Real OMS/CRM integrations are still mocked or internalized.
+    \item Local model latency and cold starts can affect first-turn responsiveness.
+    \item Admin/security controls require stronger auth and role hardening.
+\end{itemize}
+
+% ============================================================================
+% 13. Future Work
+% ============================================================================
+\chapter{Future Work}
+\begin{enumerate}[label=\arabic*.]
+    \item Integrate real enterprise order and CRM APIs.
+    \item Add role-based authentication and policy enforcement for admin routes.
+    \item Build CI/CD with unit, integration, and end-to-end test gates.
+    \item Add observability stack for traces, metrics, alerts, and SLA dashboards.
+    \item Extend multilingual support and proactive follow-up recommendations.
+\end{enumerate}
+
+% ============================================================================
+% 14. Detailed System Internals
+% ============================================================================
+\chapter{Detailed System Internals}
+\section{End-to-End Request Lifecycle}
+This section presents the complete internal lifecycle of user requests in both text and voice modes, including routing, memory, retrieval, tool calls, critique, and response delivery.
+
+\subsection{Text Chat Lifecycle}
+\begin{enumerate}[label=\arabic*.]
+    \item Frontend sends user text through WebSocket to \texttt{/ws/chat/\{session\_id\}}.
+    \item Backend resolves session profile and optional active order context.
+    \item A scoped cache key is generated; cache hit returns directly with metadata logging.
+    \item On cache miss, the request enters the LangGraph pipeline.
+    \item Supervisor classifies intent, Triage plans subtasks, Resolution executes retrieval/tool operations.
+    \item Critic approves, rejects (retry), or escalates.
+    \item Final output is normalized for readability and persisted to Redis/Mongo.
+    \item Assistant response is streamed to UI and surfaced in chat history.
+\end{enumerate}
+
+\subsection{Voice Lifecycle}
+\begin{enumerate}[label=\arabic*.]
+    \item Frontend streams audio chunks to \texttt{/ws/voice-stream/\{session\_id\}}.
+    \item Backend accumulates turn chunks and applies silence-based finalization.
+    \item Partial transcript and early reply preview are emitted to reduce perceived latency.
+    \item Completed turn is transcribed with Whisper and validated through VAD and turn checks.
+    \item The transcribed query flows through fast voice reply path or full graph path.
+    \item Final text is synthesized to TTS and returned with \texttt{audio\_url}.
+\end{enumerate}
+
+\section{Internal Quality Gates}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Grounding Gate}: order APIs + FAISS context retrieval before final answer.
+    \item \textbf{Critic Gate}: approval required for non-escalated resolution path.
+    \item \textbf{Formatting Gate}: response normalization removes malformed markdown/table artifacts.
+    \item \textbf{Escalation Gate}: unresolved or sensitive cases are routed to human handoff bundle.
+\end{itemize}
+
+\section{Conversation Context Model}
+\begin{table}[H]
+\centering
+\caption{Conversation context fields used across request processing}
+\begin{tabularx}{\textwidth}{|l|l|X|}
+\hline
+\textbf{Field} & \textbf{Source} & \textbf{Purpose} \\
+\hline
+\path|session_id| & Frontend / generated & Conversation continuity and storage keying \\
+\hline
+\path|order_id| & explicit payload / regex / profile & Order-specific grounding for responses \\
+\hline
+\path|intent| & Supervisor/Critic metadata & Analytics and queue triage \\
+\hline
+\path|priority| & Triage/Critic metadata & Escalation urgency and dashboard grouping \\
+\hline
+\path|history| & Redis/Mongo & Multi-turn reasoning continuity \\
+\hline
+\end{tabularx}
+\end{table}
+
+% ============================================================================
+% 15. Website Screens and UX Walkthrough
+% ============================================================================
+\chapter{Website Screens and UX Walkthrough}
+\section{How to Use This Section}
+Replace the placeholder image files below with screenshots from your website/UI exported from your local environment. Keep filenames same or update the path strings.
+
+\section{Home and Navigation}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{images/home_dashboard.png}
+\caption{Website home/dashboard screen showing main navigation and app modules}
+\label{fig:web-home}
+\end{figure}
+
+\section{Store and My Orders Flow}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{images/store_catalog.png}
+\caption{Store page with product cards, cart, and quick purchase actions}
+\label{fig:web-store}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{images/my_orders_page.png}
+\caption{My Orders page with search, order timeline, and support jump actions}
+\label{fig:web-orders}
+\end{figure}
+
+\section{Chat Experience}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{images/chat_order_context.png}
+\caption{Order-scoped chat session showing active order badge and contextual response}
+\label{fig:web-chat-order}
+\end{figure}
+
+\section{Voice Experience}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{images/voice_mode_live.png}
+\caption{Voice Mode live state with activity bars, partial transcript, and early reply preview}
+\label{fig:web-voice}
+\end{figure}
+
+\section{Admin Dashboard}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{images/admin_portal.png}
+\caption{Admin portal with metrics, queue filtering, and analytics panels}
+\label{fig:web-admin}
+\end{figure}
+
+\section{UX Design Notes}
+\begin{itemize}[leftmargin=*]
+    \item Sidebar and mobile selector provide mode discoverability.
+    \item Order-first routing reduces support friction for no-login flow.
+    \item Voice mode visual state improves user confidence during turn processing.
+    \item Admin filters improve operator triage speed during peak load.
+\end{itemize}
+
+% ============================================================================
+% 16. API Contract and Integration Details
+% ============================================================================
+\chapter{API Contract and Integration Details}
+\section{REST Endpoints}
+\begin{longtable}{|p{2.1cm}|p{4.0cm}|p{7.0cm}|}
+\hline
+\textbf{Method} & \textbf{Path} & \textbf{Purpose} \\
+\hline
+GET & \path|/api/history/{session_id}| & Retrieve historical messages for chat reconstruction \\
+\hline
+GET & \path|/api/mock/orders| & Fetch order list for My Orders screen \\
+\hline
+GET & \path|/api/mock/order/{order_id}| & Fetch single order details and status \\
+\hline
+GET & \path|/api/mock/order/{order_id}/events| & Fetch timeline events for selected order \\
+\hline
+POST & \path|/api/mock/order| & Create a new mock order record \\
+\hline
+POST & \path|/api/mock/order/{order_id}/event| & Append event and update order state \\
+\hline
+POST & \path|/api/voice/transcribe| & File-upload voice turn STT + response + TTS \\
+\hline
+GET & \path|/api/admin/metrics| & Dashboard aggregate metrics \\
+\hline
+GET & \path|/api/admin/queue| & Escalation queue and active issues \\
+\hline
+GET & \path|/api/admin/analytics| & Intent and priority breakdown analytics \\
+\hline
+POST & \path|/api/admin/kb/upload| & Append KB content and trigger reindex \\
+\hline
+\end{longtable}
+
+\section{WebSocket Message Shapes}
+\subsection{Chat WebSocket Input}
+\begin{lstlisting}[language={},caption={Chat payload shapes}]
+// Backward-compatible plain text
+"Where is my order SE-8738?"
+
+// Structured payload with explicit order grounding
+{
+  "type": "chat_message",
+  "text": "Please confirm current status",
+  "order_id": "SE-8738"
+}
+\end{lstlisting}
+
+\subsection{Voice Stream Control Messages}
+\begin{lstlisting}[language={},caption={Voice stream control messages}]
+{"type": "start_turn", "order_id": "SE-8738", "accuracy_profile": "strict"}
+{"type": "end_turn", "order_id": "SE-8738", "accuracy_profile": "strict"}
+{"type": "ping"}
+\end{lstlisting}
+
+\section{Error Contracts}
+\begin{table}[H]
+\centering
+\caption{Representative error responses}
+\begin{tabularx}{\textwidth}{|l|l|X|}
+\hline
+\textbf{Channel} & \textbf{Signal} & \textbf{Meaning} \\
+\hline
+REST & HTTP 404 order not found & Unknown order id in current stores \\
+\hline
+Voice WS & \texttt{turn\_error: No clear speech detected} & Insufficient speech/noise-only turn \\
+\hline
+Chat WS & Temporary system error message & Graph/tool invocation path failure fallback \\
+\hline
+\end{tabularx}
+\end{table}
+
+% ============================================================================
+% 17. Data Model and Persistence Design
+% ============================================================================
+\chapter{Data Model and Persistence Design}
+\section{MongoDB Collections}
+\subsection{support\_sessions}
+Contains session history, message traces, and activity features used for analytics and queue rendering.
+
+\subsection{orders}
+Contains order metadata used by store/order workflows and support grounding.
+
+\section{Redis Key Strategy}
+\begin{table}[H]
+\centering
+\caption{Redis key patterns}
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\textbf{Key Pattern} & \textbf{Usage} \\
+\hline
+\path|session:{id}:history| & Ordered message list for recent turn reconstruction \\
+\hline
+\path|session:{id}:meta| & Intent, priority, and order context metadata \\
+\hline
+\path|session:{id}:profile| & Customer profile attributes (name/email/phone/order context) \\
+\hline
+\path|support:email:queue| & Pending/processed email support queue entries \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Cache Strategy}
+The response cache stores approved responses by normalized key and now uses order-scoped cache keys for order-grounded requests. This avoids accidental response leakage across different orders with similar wording.
+
+% ============================================================================
+% 18. Experimental Evaluation and Trace Samples
+% ============================================================================
+\chapter{Experimental Evaluation and Trace Samples}
+\section{Evaluation Setup}
+Experiments were run on representative scenarios spanning order tracking, delayed delivery frustration, refund requests, technical troubleshooting, and ambiguous intent prompts.
+
+\section{Representative Trace 1: Order Delay Complaint}
+\begin{lstlisting}[language={},caption={Trace: order delay complaint trajectory}]
+Input: "My order SE-8738 is delayed again. What is happening?"
+Supervisor: intent=order_support, priority=P2
+Triage: tasks=[fetch_order, retrieve_policy, craft_resolution]
+Resolution: order_status=In Transit, eta=5 days, policy_context=delay guidance
+Critic: APPROVE (grounded, empathetic, complete)
+Output: status + ETA + next steps + escalation option
+\end{lstlisting}
+
+\section{Representative Trace 2: Voice Turn with Partial Transcript}
+\begin{lstlisting}[language={},caption={Trace: voice pipeline events}]
+start_turn -> chunk_stream -> partial_transcript -> early_reply
+auto-silence finalize -> transcribe -> detect_turn_end
+fast_voice_reply -> synthesize -> turn_result(audio_url)
+\end{lstlisting}
+
+\section{Consistency Run Summary}
+\begin{table}[H]
+\centering
+\caption{Repeated prompt consistency sample}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Prompt Type} & \textbf{Runs} & \textbf{Fact Consistency} & \textbf{Style Variance} \\
+\hline
+Order status query & 10 & High & Moderate \\
+\hline
+Refund policy query & 10 & High & Low \\
+\hline
+Technical troubleshooting & 10 & Medium-High & Moderate \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Failure Mode Review}
+\begin{itemize}[leftmargin=*]
+    \item Broken markdown from LLM outputs: mitigated by response normalization layer.
+    \item Voice start/end instability: mitigated by manual-stop guard in UI turn loop.
+    \item Missing order events for existing DB rows: mitigated by empty-list return fallback.
+\end{itemize}
+
+% ============================================================================
+% 19. Deployment, Operations, and Security Notes
+% ============================================================================
+\chapter{Deployment, Operations, and Security Notes}
+\section{Deployment Topology (Recommended)}
+\begin{itemize}[leftmargin=*]
+    \item Frontend static build behind CDN or Nginx.
+    \item FastAPI app behind reverse proxy with WebSocket support.
+    \item Redis and MongoDB in managed/private network segment.
+    \item Optional Ollama worker node for local fallback route.
+\end{itemize}
+
+\section{Operational Runbook}
+\begin{enumerate}[label=\arabic*.]
+    \item Validate environment variables and service connectivity at startup.
+    \item Confirm FAISS index availability and Redis/Mongo health checks.
+    \item Monitor queue growth and escalation rate in Admin dashboard.
+    \item Rotate logs and purge temporary voice artifacts on schedule.
+\end{enumerate}
+
+\section{Security and Governance Considerations}
+\begin{itemize}[leftmargin=*]
+    \item Add authentication and role-based access for admin endpoints.
+    \item Restrict CORS origins for production deployment.
+    \item Protect secrets via vault/env manager and avoid source-controlled credentials.
+    \item Add PII redaction and retention policies for support logs.
+\end{itemize}
+
+% ============================================================================
+% 20. Project Management and Team Contributions
+% ============================================================================
+\chapter{Project Management and Team Contributions}
+\section{Implementation Timeline}
+\begin{table}[H]
+\centering
+\caption{Suggested milestone timeline (customize with exact dates)}
+\begin{tabularx}{\textwidth}{|l|l|X|}
+\hline
+\textbf{Phase} & \textbf{Duration} & \textbf{Deliverables} \\
+\hline
+Requirement analysis & Week 1--2 & PRD, architecture draft, domain scenarios \\
+\hline
+Core backend build & Week 3--5 & FastAPI routes, graph integration, data layer \\
+\hline
+Frontend and UX & Week 6--8 & Store/chat/voice/admin interfaces \\
+\hline
+RAG and voice integration & Week 9--10 & FAISS retrieval, streaming voice pipeline \\
+\hline
+Testing and hardening & Week 11--12 & bug fixes, output normalization, order context logic \\
+\hline
+Report and demo prep & Week 13--14 & final report, screenshots, demo scripts \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Team Contribution Template}
+Use the table below and fill with your exact contributions before final submission.
+\begin{table}[H]
+\centering
+\caption{Team contribution matrix}
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\textbf{Name} & \textbf{Contribution Summary} \\
+\hline
+Vishwa Teja & Backend orchestration, order-context integration, report consolidation \\
+\hline
+Suhas Varma & Frontend flows (orders/chat/admin), UX iteration, integration testing \\
+\hline
+Rohith Ch & Voice mode pipeline integration, WS controls, runtime debugging \\
+\hline
+Shashank & Data layer setup, analytics endpoints, dashboard metrics design \\
+\hline
+Siddhartha & RAG preparation, KB curation, demo evaluation artifacts \\
+\hline
+\end{tabularx}
+\end{table}
+
+% ============================================================================
+% 21. References
+% ============================================================================
+\chapter*{References}
+\addcontentsline{toc}{chapter}{References}
+\begin{enumerate}[label={[\arabic*]}]
+    \item LangGraph Documentation. \url{https://langchain-ai.github.io/langgraph/}
+    \item FastAPI Documentation. \url{https://fastapi.tiangolo.com/}
+    \item LangChain Documentation. \url{https://python.langchain.com/}
+    \item Groq API Documentation. \url{https://console.groq.com/docs}
+    \item Google Gemini API Documentation. \url{https://ai.google.dev/docs}
+    \item Ollama Documentation. \url{https://ollama.com/}
+    \item OpenAI Whisper (paper and implementation references).
+    \item FAISS Documentation. \url{https://faiss.ai/}
+    \item Redis Documentation. \url{https://redis.io/docs/}
+    \item MongoDB Documentation. \url{https://www.mongodb.com/docs/}
+\end{enumerate}
+
+\appendix
+\chapter{Reproducibility Notes}
+\section{Backend Startup}
+\begin{verbatim}
+python -m uvicorn backend.main:app --reload
+\end{verbatim}
+
+\section{Frontend Startup}
+\begin{verbatim}
+cd frontend
+npm install
+npm run dev
+\end{verbatim}
+
+\section{Optional Services}
+\begin{verbatim}
+# Redis via docker compose
+docker compose up -d
+
+# Optional local LLM runtime
+ollama serve
+\end{verbatim}
+
+\end{document}
